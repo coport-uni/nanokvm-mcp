@@ -116,6 +116,46 @@ If you see the target machine's screen, you're done. 🎉
 
 ---
 
+## Install as a one-click bundle (MCPB, Windows)
+
+Instead of editing JSON by hand, you can install this server as an
+**MCPB bundle** — a single `.mcpb` file that Claude Desktop installs in
+one click and that prompts you for the connection settings through a
+form. This packaging targets **Windows** and runs on your system Python.
+
+### Prerequisites
+
+- **Windows** (the bundle vendors Windows-only binary wheels).
+- **Python 3.10+** on your `PATH` (Claude Desktop ships Node, not Python,
+  so the bundle relies on your system interpreter).
+
+### Build the bundle
+
+The vendored dependencies and the `.mcpb` file are build artifacts and
+are not committed to git. Regenerate them from a clone:
+
+```powershell
+git clone https://github.com/coport-uni/nanokvm-mcp.git
+cd nanokvm-mcp
+.\mcpb\build.ps1
+```
+
+This produces `nanokvm-mcp.mcpb` in the project root.
+
+### Install it
+
+1. Open **Claude Desktop → Settings → Extensions**.
+2. Drag `nanokvm-mcp.mcpb` onto the window (or use *Install from file*).
+3. Fill in the configuration form — at minimum the **NanoKVM Host**, plus
+   username, password, and screen size as needed. The password is stored
+   securely and never written to a plain-text config file.
+4. Enable the extension. Claude can now control the NanoKVM.
+
+The form fields map to the same settings as the environment variables in
+the [Configuration reference](#configuration-reference) below.
+
+---
+
 ## Configuration reference
 
 ### Environment variables

@@ -1,0 +1,116 @@
+{
+  "manifest_version": "0.4",
+  "name": "nanokvm-mcp",
+  "display_name": "NanoKVM",
+  "version": "0.1.0",
+  "description": "MCP server for controlling NanoKVM devices",
+  "long_description": "Control a NanoKVM device from Claude: power the target machine on/off, cycle power, send keyboard and mouse input, capture screenshots of the HDMI output, mount and unmount ISO images, and read device and hardware status. This bundle targets Windows and runs the server on the system Python interpreter.",
+  "author": {
+    "name": "coport-uni",
+    "url": "https://github.com/coport-uni/nanokvm-mcp"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/coport-uni/nanokvm-mcp"
+  },
+  "homepage": "https://github.com/coport-uni/nanokvm-mcp",
+  "documentation": "https://github.com/coport-uni/nanokvm-mcp#readme",
+  "icon": "icon.png",
+  "license": "MIT",
+  "keywords": ["nanokvm", "kvm", "remote-control", "hid", "power", "screenshot"],
+  "server": {
+    "type": "python",
+    "entry_point": "server/main.py",
+    "mcp_config": {
+      "command": "python",
+      "args": ["${__dirname}/server/main.py"],
+      "env": {
+        "PYTHONPATH": "${__dirname}/server/lib",
+        "NANOKVM_HOST": "${user_config.host}",
+        "NANOKVM_USER": "${user_config.username}",
+        "NANOKVM_PASS": "${user_config.password}",
+        "NANOKVM_SCREEN_WIDTH": "${user_config.screen_width}",
+        "NANOKVM_SCREEN_HEIGHT": "${user_config.screen_height}",
+        "NANOKVM_HTTPS": "${user_config.use_https}",
+        "NANOKVM_VERIFY_SSL": "${user_config.verify_ssl}"
+      }
+    }
+  },
+  "tools": [
+    { "name": "nanokvm_power", "description": "Press the target machine's power button (short, long, or reset)" },
+    { "name": "nanokvm_power_cycle", "description": "Force off, wait, then power on the target machine" },
+    { "name": "nanokvm_led_status", "description": "Read the power and HDD LED status" },
+    { "name": "nanokvm_hdmi_status", "description": "Get HDMI connection status and resolution" },
+    { "name": "nanokvm_hdmi_reset", "description": "Reset the HDMI connection" },
+    { "name": "nanokvm_send_text", "description": "Type text on the target machine via keyboard emulation" },
+    { "name": "nanokvm_send_key", "description": "Send a single key press with optional modifiers" },
+    { "name": "nanokvm_tap", "description": "Tap at a specific screen position" },
+    { "name": "nanokvm_click", "description": "Click a mouse button, optionally at a position" },
+    { "name": "nanokvm_move", "description": "Move the mouse cursor to an absolute position" },
+    { "name": "nanokvm_scroll", "description": "Scroll the mouse wheel up or down" },
+    { "name": "nanokvm_screenshot", "description": "Capture a JPEG screenshot of the target display" },
+    { "name": "nanokvm_list_images", "description": "List available ISO images on the device" },
+    { "name": "nanokvm_mount_iso", "description": "Mount an ISO image as CD-ROM or USB disk" },
+    { "name": "nanokvm_unmount_iso", "description": "Unmount the currently mounted ISO image" },
+    { "name": "nanokvm_mounted_image", "description": "Get information about the mounted ISO image" },
+    { "name": "nanokvm_reset_hid", "description": "Reset the HID keyboard and mouse devices" },
+    { "name": "nanokvm_info", "description": "Get NanoKVM device information" },
+    { "name": "nanokvm_hardware", "description": "Get NanoKVM hardware information" }
+  ],
+  "user_config": {
+    "host": {
+      "type": "string",
+      "title": "NanoKVM Host",
+      "description": "Host or IP of the NanoKVM device, with optional port (e.g. 192.168.1.50 or 192.168.1.50:8080)",
+      "required": true
+    },
+    "username": {
+      "type": "string",
+      "title": "Username",
+      "description": "NanoKVM web login username",
+      "default": "admin",
+      "required": false
+    },
+    "password": {
+      "type": "string",
+      "title": "Password",
+      "description": "NanoKVM web login password",
+      "sensitive": true,
+      "required": false
+    },
+    "screen_width": {
+      "type": "number",
+      "title": "Screen Width",
+      "description": "Target display width in pixels, used for mouse/tap coordinates",
+      "default": 1920,
+      "required": false
+    },
+    "screen_height": {
+      "type": "number",
+      "title": "Screen Height",
+      "description": "Target display height in pixels, used for mouse/tap coordinates",
+      "default": 1080,
+      "required": false
+    },
+    "use_https": {
+      "type": "boolean",
+      "title": "Use HTTPS",
+      "description": "Connect to the NanoKVM over HTTPS instead of HTTP",
+      "default": false,
+      "required": false
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "title": "Verify SSL Certificate",
+      "description": "Verify the device's TLS certificate when using HTTPS",
+      "default": true,
+      "required": false
+    }
+  },
+  "compatibility": {
+    "platforms": ["win32"],
+    "runtimes": {
+      "python": ">=3.10 <4"
+    }
+  }
+}
