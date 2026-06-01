@@ -26,26 +26,30 @@ Only checkbox state and a trailing commit/issue link may be updated.
 Goal: produce a one-click-installable `.mcpb` bundle of `nanokvm-mcp`
 for Claude Desktop on Windows. Manifest spec version 0.3.
 
-- [ ] Add `mcpb/` build directory (kept out of the wheel; not in `tests/`)
-- [ ] Author `mcpb/manifest.json` (manifest_version `0.3`, `server.type`
-      `python`, `entry_point` `server/main.py`, `compatibility.platforms`
-      `["win32"]`)
-- [ ] Map env vars to `user_config` fields: `host` (required), `username`
+- [x] Add `mcpb/` build directory (kept out of the wheel; not in `tests/`)
+- [x] Author `mcpb/manifest.json` — used manifest_version `0.4` (latest
+      example), `server.type python`, `compatibility.platforms ["win32"]`
+- [x] Map env vars to `user_config` fields: `host` (required), `username`
       (default `admin`), `password` (`sensitive: true`), `screen_width`,
       `screen_height`, `use_https` (boolean), `verify_ssl` (boolean)
-- [ ] Inject `user_config` into `mcp_config.env` as `NANOKVM_*` via
+- [x] Inject `user_config` into `mcp_config.env` as `NANOKVM_*` via
       `${user_config.KEY}`; set `PYTHONPATH` to `${__dirname}/server/lib`
-- [ ] Add `server/main.py` thin entry that calls `nanokvm_mcp.server.main`
-- [ ] Vendor Windows wheels into `server/lib/` via
-      `pip install --target server/lib -r requirements.txt`
-      (mcp, httpx, websockets, pycryptodome, pillow + pydantic deps)
-- [ ] Declare `tools` array in manifest (16 `nanokvm_*` tools from server.py)
-- [ ] Document the Python-runtime prerequisite (Claude Desktop ships Node,
-      not Python); decide python vs `uv` server type and record rationale
-- [ ] Validate with `npx @anthropic-ai/mcpb validate mcpb/manifest.json`
-- [ ] Build with `npx @anthropic-ai/mcpb pack mcpb` → `nanokvm-mcp.mcpb`
-- [ ] Manual install test in Claude Desktop on Windows; verify config form
-      prompts and a tool call (e.g. `nanokvm_info`) succeeds
-- [ ] Add bundle icon: copy `media/images.png` to `mcpb/icon.png` and
-      reference it via the manifest `icon` field
-- [ ] Update `README.md` with MCPB install instructions (English, §2)
+- [x] Add `server/main.py` thin entry that calls `nanokvm_mcp.server.main`
+- [x] Vendor Windows wheels into `server/lib/` via
+      `pip install --target` (installs the project + deps; 80 MB, 104 .pyd)
+- [x] Declare `tools` array in manifest — 19 `nanokvm_*` tools (not 16)
+- [x] Decided `python` server type (system Python) over `uv`; documented
+      the Python-runtime prerequisite in the README
+- [x] Validate with `npx @anthropic-ai/mcpb validate` — schema passes
+- [x] Build with `npx @anthropic-ai/mcpb pack mcpb` → `nanokvm-mcp.mcpb`
+      (34 MB packed; verified archive root layout)
+- [ ] Manual install test in Claude Desktop on Windows (deferred to user —
+      requires a GUI session)
+- [x] Add bundle icon: copied `media/images.png` to `mcpb/icon.png`,
+      referenced via manifest `icon` field
+- [x] Update `README.md` with MCPB install instructions (English, §2)
+
+Issue coport-uni/nanokvm-mcp#1 · PR coport-uni/nanokvm-mcp#2 ·
+branch `feature/mcpb-packaging`. Added `mcpb/build.ps1` (reproducible
+build) and ignored `*.mcpb`. Remaining: live Claude Desktop install
+test on Windows (user to verify).
