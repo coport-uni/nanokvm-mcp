@@ -41,6 +41,7 @@ ENV/
 .coverage.*
 htmlcov/
 .pytest_cache/
+.ruff_cache/
 .mypy_cache/
 
 # Distribution
@@ -59,3 +60,5 @@ Thumbs.db
 .env.development
 credentials*.json
 secrets/
+# Contains NanoKVM host/user/password — must never be uploaded
+claude_desktop_config.json

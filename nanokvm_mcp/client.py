@@ -2,7 +2,6 @@
 
 import asyncio
 import base64
-import json
 import logging
 from io import BytesIO
 from typing import Any
@@ -13,12 +12,13 @@ from PIL import Image
 
 from .auth import encrypt_password
 from .hid import (
-    KEYCODES,
     KeyboardModifier,
     MouseButton,
-    MouseEvent,
+    build_keyboard_report,
+    build_mouse_report,
     char_to_keycode,
     get_key_info,
+    scale_coordinate,
 )
 
 logger = logging.getLogger(__name__)
@@ -64,6 +64,11 @@ class NanoKVMClient:
         self._http_client: httpx.AsyncClient | None = None
         self._ws: websockets.WebSocketClientProtocol | None = None
         self._ws_lock = asyncio.Lock()
+
+        # Last mouse position in NanoKVM 16-bit coordinates. Click and scroll
+        # reports must carry the current position so the cursor does not jump.
+        self._last_kvm_x = scale_coordinate(0, self.screen_width)
+        self._last_kvm_y = scale_coordinate(0, self.screen_height)
 
     async def _get_http_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client with authentication."""
@@ -264,10 +269,25 @@ class NanoKVMClient:
     # WebSocket HID Control
     # -------------------------------------------------------------------------
 
-    async def _get_websocket(self) -> websockets.WebSocketClientProtocol:
+    def _ws_is_open(self) -> bool:
+        """Whether the cached WebSocket is connected.
+
+        Handles both the modern ``websockets`` asyncio client (which exposes a
+        ``state`` enum) and the legacy protocol (which exposed a ``closed``
+        boolean).
+        """
+        ws = self._ws
+        if ws is None:
+            return False
+        state = getattr(ws, "state", None)
+        if state is not None:
+            return getattr(state, "name", "") == "OPEN"
+        return not getattr(ws, "closed", True)
+
+    async def _get_websocket(self):
         """Get or create WebSocket connection."""
         async with self._ws_lock:
-            if self._ws is None or self._ws.closed:
+            if not self._ws_is_open():
                 await self._ensure_authenticated()
 
                 # Build cookie header
@@ -281,10 +301,15 @@ class NanoKVMClient:
 
             return self._ws
 
-    async def _send_ws(self, message: list[int]) -> None:
-        """Send WebSocket HID message."""
+    async def _send_ws(self, message: bytes) -> None:
+        """Send a binary WebSocket HID frame.
+
+        NanoKVM expects raw binary frames where the first byte selects the
+        channel (heartbeat/keyboard/mouse). Passing bytes makes the websockets
+        library send a binary frame; sending text (e.g. JSON) would be ignored.
+        """
         ws = await self._get_websocket()
-        await ws.send(json.dumps(message))
+        await ws.send(message)
 
     async def send_key(
         self,
@@ -308,22 +333,25 @@ class NanoKVMClient:
         if key_info is None:
             raise ValueError(f"Unknown key: {key}")
 
-        keycode = key_info.code
+        # Combine modifiers into a single bitmask byte.
+        modifier = 0
+        if ctrl:
+            modifier |= KeyboardModifier.CTRL_LEFT
+        if shift or key_info.shift:
+            modifier |= KeyboardModifier.SHIFT_LEFT
+        if alt:
+            modifier |= KeyboardModifier.ALT_LEFT
+        if meta:
+            modifier |= KeyboardModifier.META_LEFT
 
-        # Build modifier values
-        ctrl_val = KeyboardModifier.CTRL_LEFT if ctrl else 0
-        shift_val = KeyboardModifier.SHIFT_LEFT if (shift or key_info.shift) else 0
-        alt_val = KeyboardModifier.ALT_LEFT if alt else 0
-        meta_val = KeyboardModifier.META_LEFT if meta else 0
-
-        # Key down: [1, keycode, ctrl, shift, alt, meta]
-        await self._send_ws([1, keycode, ctrl_val, shift_val, alt_val, meta_val])
+        # Key down: modifier + keycode in the first slot.
+        await self._send_ws(build_keyboard_report(modifier, [key_info.code]))
 
         # Small delay
         await asyncio.sleep(0.05)
 
-        # Key up: [1, 0, 0, 0, 0, 0]
-        await self._send_ws([1, 0, 0, 0, 0, 0])
+        # Key up: all-zero report releases every key and modifier.
+        await self._send_ws(build_keyboard_report())
 
     async def send_text_ws(self, text: str) -> None:
         """
@@ -342,14 +370,13 @@ class NanoKVMClient:
 
             keycode, modifier = result
 
-            # Key down
-            shift_val = modifier if modifier else 0
-            await self._send_ws([1, keycode, 0, shift_val, 0, 0])
+            # Key down (modifier is already a SHIFT_LEFT bitmask or 0).
+            await self._send_ws(build_keyboard_report(modifier, [keycode]))
 
             await asyncio.sleep(0.03)
 
             # Key up
-            await self._send_ws([1, 0, 0, 0, 0, 0])
+            await self._send_ws(build_keyboard_report())
 
             await asyncio.sleep(0.03)
 
@@ -361,16 +388,14 @@ class NanoKVMClient:
             x: X coordinate (0 to screen_width)
             y: Y coordinate (0 to screen_height)
         """
-        # Convert screen coordinates to NanoKVM coordinates (1-32768)
-        kvm_x = int((x / self.screen_width) * 0x7FFE) + 1
-        kvm_y = int((y / self.screen_height) * 0x7FFE) + 1
+        # Convert screen pixels to NanoKVM 16-bit absolute coordinates and
+        # remember them so click/scroll reports keep the cursor in place.
+        kvm_x = scale_coordinate(x, self.screen_width)
+        kvm_y = scale_coordinate(y, self.screen_height)
+        self._last_kvm_x = kvm_x
+        self._last_kvm_y = kvm_y
 
-        # Clamp values
-        kvm_x = max(1, min(0x7FFF, kvm_x))
-        kvm_y = max(1, min(0x7FFF, kvm_y))
-
-        # [2, MoveAbsolute, button, x, y]
-        await self._send_ws([2, MouseEvent.MOVE_ABSOLUTE, MouseButton.NONE, kvm_x, kvm_y])
+        await self._send_ws(build_mouse_report(MouseButton.NONE, kvm_x, kvm_y))
 
     async def mouse_click(
         self,
@@ -397,12 +422,16 @@ class NanoKVMClient:
             await self.mouse_move(x, y)
             await asyncio.sleep(0.05)
 
+        # Down/up reports must carry the current position, otherwise the
+        # cursor would jump to (0, 0).
+        cx, cy = self._last_kvm_x, self._last_kvm_y
+
         # Mouse down
-        await self._send_ws([2, MouseEvent.DOWN, btn, 0, 0])
+        await self._send_ws(build_mouse_report(btn, cx, cy))
         await asyncio.sleep(0.05)
 
         # Mouse up
-        await self._send_ws([2, MouseEvent.UP, MouseButton.NONE, 0, 0])
+        await self._send_ws(build_mouse_report(MouseButton.NONE, cx, cy))
 
     async def tap(self, x: int, y: int) -> None:
         """
@@ -421,7 +450,13 @@ class NanoKVMClient:
         Args:
             delta: Scroll amount (positive = down, negative = up)
         """
-        await self._send_ws([2, MouseEvent.SCROLL, 0, 0, delta])
+        # Clamp to a signed byte and keep the cursor at its current position.
+        wheel = max(-127, min(127, delta))
+        await self._send_ws(
+            build_mouse_report(
+                MouseButton.NONE, self._last_kvm_x, self._last_kvm_y, wheel
+            )
+        )
 
     # -------------------------------------------------------------------------
     # Screenshot
@@ -462,16 +497,16 @@ class NanoKVMClient:
                 buffer += chunk
 
                 # Look for JPEG frame markers
-                start = buffer.find(b'\xff\xd8')  # JPEG start
+                start = buffer.find(b"\xff\xd8")  # JPEG start
                 if start == -1:
                     continue
 
-                end = buffer.find(b'\xff\xd9', start)  # JPEG end
+                end = buffer.find(b"\xff\xd9", start)  # JPEG end
                 if end == -1:
                     continue
 
                 # Extract complete JPEG frame
-                jpeg_data = buffer[start:end + 2]
+                jpeg_data = buffer[start : end + 2]
                 logger.debug(f"Captured screenshot: {len(jpeg_data)} bytes")
                 return jpeg_data
 
@@ -517,15 +552,19 @@ class NanoKVMClient:
                 new_width = int(new_width * ratio)
 
             if (new_width, new_height) != (original_width, original_height):
-                img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-                logger.debug(f"Resized screenshot: {original_width}x{original_height} -> {new_width}x{new_height}")
+                img = img.resize(
+                    (new_width, new_height), Image.Resampling.LANCZOS
+                )
+                logger.debug(
+                    f"Resized screenshot: {original_width}x{original_height} -> {new_width}x{new_height}"
+                )
 
             # Re-encode with specified quality
             buffer = BytesIO()
-            img.save(buffer, format='JPEG', quality=quality, optimize=True)
+            img.save(buffer, format="JPEG", quality=quality, optimize=True)
             jpeg_data = buffer.getvalue()
 
-        return base64.b64encode(jpeg_data).decode('utf-8')
+        return base64.b64encode(jpeg_data).decode("utf-8")
 
     async def screenshot_pil(self, timeout: float = 5.0) -> Image.Image:
         """

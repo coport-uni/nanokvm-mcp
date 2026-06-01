@@ -1,13 +1,12 @@
 """Tests for the client module - NanoKVM API client."""
 
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
 
 from nanokvm_mcp.client import NanoKVMClient
-from nanokvm_mcp.hid import MouseEvent, MouseButton
+from nanokvm_mcp.hid import MouseButton
 
 
 class TestNanoKVMClientInit:
@@ -116,10 +115,12 @@ class TestNanoKVMClientPowerControl:
     @pytest.mark.unit
     async def test_power_short(self, authenticated_client):
         """power_short should call power with 800ms duration."""
-        with patch.object(authenticated_client, "power", new_callable=AsyncMock) as mock_power:
+        with patch.object(
+            authenticated_client, "power", new_callable=AsyncMock
+        ) as mock_power:
             mock_power.return_value = {"code": 0}
 
-            result = await authenticated_client.power_short()
+            await authenticated_client.power_short()
 
             mock_power.assert_called_once_with("power", 800)
 
@@ -127,10 +128,12 @@ class TestNanoKVMClientPowerControl:
     @pytest.mark.unit
     async def test_power_long(self, authenticated_client):
         """power_long should call power with 5000ms duration."""
-        with patch.object(authenticated_client, "power", new_callable=AsyncMock) as mock_power:
+        with patch.object(
+            authenticated_client, "power", new_callable=AsyncMock
+        ) as mock_power:
             mock_power.return_value = {"code": 0}
 
-            result = await authenticated_client.power_long()
+            await authenticated_client.power_long()
 
             mock_power.assert_called_once_with("power", 5000)
 
@@ -138,10 +141,12 @@ class TestNanoKVMClientPowerControl:
     @pytest.mark.unit
     async def test_reset(self, authenticated_client):
         """reset should call power with reset type."""
-        with patch.object(authenticated_client, "power", new_callable=AsyncMock) as mock_power:
+        with patch.object(
+            authenticated_client, "power", new_callable=AsyncMock
+        ) as mock_power:
             mock_power.return_value = {"code": 0}
 
-            result = await authenticated_client.reset()
+            await authenticated_client.reset()
 
             mock_power.assert_called_once_with("reset", 800)
 
@@ -149,7 +154,9 @@ class TestNanoKVMClientPowerControl:
     @pytest.mark.unit
     async def test_power_request_format(self, authenticated_client):
         """power should send correct request format."""
-        with patch.object(authenticated_client, "_request", new_callable=AsyncMock) as mock_req:
+        with patch.object(
+            authenticated_client, "_request", new_callable=AsyncMock
+        ) as mock_req:
             mock_req.return_value = {"code": 0}
 
             await authenticated_client.power("power", 800)
@@ -166,9 +173,13 @@ class TestNanoKVMClientHDMI:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_get_hdmi_status(self, authenticated_client, mock_hdmi_status_response):
+    async def test_get_hdmi_status(
+        self, authenticated_client, mock_hdmi_status_response
+    ):
         """get_hdmi_status should return HDMI state."""
-        with patch.object(authenticated_client, "_request", new_callable=AsyncMock) as mock_req:
+        with patch.object(
+            authenticated_client, "_request", new_callable=AsyncMock
+        ) as mock_req:
             mock_req.return_value = mock_hdmi_status_response
 
             result = await authenticated_client.get_hdmi_status()
@@ -182,7 +193,9 @@ class TestNanoKVMClientHDMI:
     @pytest.mark.unit
     async def test_reset_hdmi(self, authenticated_client):
         """reset_hdmi should call correct endpoint."""
-        with patch.object(authenticated_client, "_request", new_callable=AsyncMock) as mock_req:
+        with patch.object(
+            authenticated_client, "_request", new_callable=AsyncMock
+        ) as mock_req:
             mock_req.return_value = {"code": 0}
 
             await authenticated_client.reset_hdmi()
@@ -197,7 +210,9 @@ class TestNanoKVMClientHID:
     @pytest.mark.unit
     async def test_paste_text(self, authenticated_client):
         """paste_text should send text to paste endpoint."""
-        with patch.object(authenticated_client, "_request", new_callable=AsyncMock) as mock_req:
+        with patch.object(
+            authenticated_client, "_request", new_callable=AsyncMock
+        ) as mock_req:
             mock_req.return_value = {"code": 0}
 
             await authenticated_client.paste_text("Hello World")
@@ -212,7 +227,9 @@ class TestNanoKVMClientHID:
     @pytest.mark.unit
     async def test_paste_text_german_layout(self, authenticated_client):
         """paste_text should support German keyboard layout."""
-        with patch.object(authenticated_client, "_request", new_callable=AsyncMock) as mock_req:
+        with patch.object(
+            authenticated_client, "_request", new_callable=AsyncMock
+        ) as mock_req:
             mock_req.return_value = {"code": 0}
 
             await authenticated_client.paste_text("Grüß Gott", language="de")
@@ -234,7 +251,9 @@ class TestNanoKVMClientHID:
     @pytest.mark.unit
     async def test_reset_hid(self, authenticated_client):
         """reset_hid should call correct endpoint."""
-        with patch.object(authenticated_client, "_request", new_callable=AsyncMock) as mock_req:
+        with patch.object(
+            authenticated_client, "_request", new_callable=AsyncMock
+        ) as mock_req:
             mock_req.return_value = {"code": 0}
 
             await authenticated_client.reset_hid()
@@ -249,7 +268,9 @@ class TestNanoKVMClientWebSocketHID:
     @pytest.mark.unit
     async def test_send_key_simple(self, authenticated_client, mock_websocket):
         """send_key should send correct WebSocket message."""
-        with patch.object(authenticated_client, "_get_websocket", new_callable=AsyncMock) as mock_get_ws:
+        with patch.object(
+            authenticated_client, "_get_websocket", new_callable=AsyncMock
+        ) as mock_get_ws:
             mock_get_ws.return_value = mock_websocket
 
             await authenticated_client.send_key("enter")
@@ -257,28 +278,32 @@ class TestNanoKVMClientWebSocketHID:
             # Should send key down and key up
             assert mock_websocket.send.call_count == 2
 
-            # Check key down message
-            key_down = json.loads(mock_websocket.send.call_args_list[0][0][0])
-            assert key_down[0] == 1  # Keyboard event type
-            assert key_down[1] == 0x28  # Enter keycode
+            # Check key down message (binary: [channel, modifier, 0, key1..6])
+            key_down = mock_websocket.send.call_args_list[0][0][0]
+            assert isinstance(key_down, bytes)
+            assert key_down == bytes([1, 0, 0, 0x28, 0, 0, 0, 0, 0])
 
-            # Check key up message
-            key_up = json.loads(mock_websocket.send.call_args_list[1][0][0])
-            assert key_up == [1, 0, 0, 0, 0, 0]
+            # Check key up message (all-zero release)
+            key_up = mock_websocket.send.call_args_list[1][0][0]
+            assert key_up == bytes([1, 0, 0, 0, 0, 0, 0, 0, 0])
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_send_key_with_modifiers(self, authenticated_client, mock_websocket):
+    async def test_send_key_with_modifiers(
+        self, authenticated_client, mock_websocket
+    ):
         """send_key should include modifiers in message."""
-        with patch.object(authenticated_client, "_get_websocket", new_callable=AsyncMock) as mock_get_ws:
+        with patch.object(
+            authenticated_client, "_get_websocket", new_callable=AsyncMock
+        ) as mock_get_ws:
             mock_get_ws.return_value = mock_websocket
 
             await authenticated_client.send_key("c", ctrl=True)
 
-            key_down = json.loads(mock_websocket.send.call_args_list[0][0][0])
-            assert key_down[0] == 1  # Keyboard event
-            assert key_down[1] == 0x06  # 'c' keycode
-            assert key_down[2] == 1  # Ctrl modifier
+            key_down = mock_websocket.send.call_args_list[0][0][0]
+            assert key_down[0] == 1  # Keyboard channel
+            assert key_down[1] == 1  # Ctrl modifier bit
+            assert key_down[3] == 0x06  # 'c' keycode in first slot
 
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -293,72 +318,93 @@ class TestNanoKVMClientMouse:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_mouse_move_coordinate_conversion(self, authenticated_client, mock_websocket):
+    async def test_mouse_move_coordinate_conversion(
+        self, authenticated_client, mock_websocket
+    ):
         """mouse_move should convert screen coords to NanoKVM coords."""
-        with patch.object(authenticated_client, "_get_websocket", new_callable=AsyncMock) as mock_get_ws:
+        with patch.object(
+            authenticated_client, "_get_websocket", new_callable=AsyncMock
+        ) as mock_get_ws:
             mock_get_ws.return_value = mock_websocket
 
             # Move to center of 1920x1080 screen
             await authenticated_client.mouse_move(960, 540)
 
-            msg = json.loads(mock_websocket.send.call_args[0][0])
-
-            assert msg[0] == 2  # Mouse event type
-            assert msg[1] == MouseEvent.MOVE_ABSOLUTE
-            assert msg[2] == MouseButton.NONE
-            # Center should be approximately 0x3FFF (16383)
-            assert 16000 < msg[3] < 17000  # X
-            assert 16000 < msg[4] < 17000  # Y
+            msg = mock_websocket.send.call_args[0][0]
+            assert isinstance(msg, bytes)
+            assert msg[0] == 2  # Mouse channel
+            assert msg[1] == MouseButton.NONE  # no buttons held
+            # Little-endian 16-bit x/y, center ~ 0x4000 (16384)
+            x = msg[2] | (msg[3] << 8)
+            y = msg[4] | (msg[5] << 8)
+            assert 16000 < x < 17000
+            assert 16000 < y < 17000
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_mouse_move_corner_coords(self, authenticated_client, mock_websocket):
+    async def test_mouse_move_corner_coords(
+        self, authenticated_client, mock_websocket
+    ):
         """mouse_move should handle corner coordinates correctly."""
-        with patch.object(authenticated_client, "_get_websocket", new_callable=AsyncMock) as mock_get_ws:
+        with patch.object(
+            authenticated_client, "_get_websocket", new_callable=AsyncMock
+        ) as mock_get_ws:
             mock_get_ws.return_value = mock_websocket
 
             # Top-left corner
             await authenticated_client.mouse_move(0, 0)
-            msg = json.loads(mock_websocket.send.call_args[0][0])
-            assert msg[3] == 1  # Min X
-            assert msg[4] == 1  # Min Y
+            msg = mock_websocket.send.call_args[0][0]
+            x = msg[2] | (msg[3] << 8)
+            y = msg[4] | (msg[5] << 8)
+            assert x == 1  # Min X
+            assert y == 1  # Min Y
 
     @pytest.mark.asyncio
     @pytest.mark.unit
     async def test_mouse_click(self, authenticated_client, mock_websocket):
         """mouse_click should send down and up events."""
-        with patch.object(authenticated_client, "_get_websocket", new_callable=AsyncMock) as mock_get_ws:
+        with patch.object(
+            authenticated_client, "_get_websocket", new_callable=AsyncMock
+        ) as mock_get_ws:
             mock_get_ws.return_value = mock_websocket
 
             await authenticated_client.mouse_click("left")
 
             assert mock_websocket.send.call_count == 2
 
-            down = json.loads(mock_websocket.send.call_args_list[0][0][0])
-            assert down[0] == 2
-            assert down[1] == MouseEvent.DOWN
-            assert down[2] == MouseButton.LEFT
+            down = mock_websocket.send.call_args_list[0][0][0]
+            assert isinstance(down, bytes)
+            assert down[0] == 2  # Mouse channel
+            assert down[1] == MouseButton.LEFT  # button held on press
 
-            up = json.loads(mock_websocket.send.call_args_list[1][0][0])
-            assert up[1] == MouseEvent.UP
+            up = mock_websocket.send.call_args_list[1][0][0]
+            assert up[1] == MouseButton.NONE  # button released
+            # Down and up must carry the same position.
+            assert down[2:6] == up[2:6]
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_mouse_click_right(self, authenticated_client, mock_websocket):
+    async def test_mouse_click_right(
+        self, authenticated_client, mock_websocket
+    ):
         """mouse_click should support right button."""
-        with patch.object(authenticated_client, "_get_websocket", new_callable=AsyncMock) as mock_get_ws:
+        with patch.object(
+            authenticated_client, "_get_websocket", new_callable=AsyncMock
+        ) as mock_get_ws:
             mock_get_ws.return_value = mock_websocket
 
             await authenticated_client.mouse_click("right")
 
-            down = json.loads(mock_websocket.send.call_args_list[0][0][0])
-            assert down[2] == MouseButton.RIGHT
+            down = mock_websocket.send.call_args_list[0][0][0]
+            assert down[1] == MouseButton.RIGHT
 
     @pytest.mark.asyncio
     @pytest.mark.unit
     async def test_tap(self, authenticated_client):
         """tap should be an alias for mouse_click with position."""
-        with patch.object(authenticated_client, "mouse_click", new_callable=AsyncMock) as mock_click:
+        with patch.object(
+            authenticated_client, "mouse_click", new_callable=AsyncMock
+        ) as mock_click:
             await authenticated_client.tap(500, 300)
 
             mock_click.assert_called_once_with("left", 500, 300)
@@ -367,15 +413,39 @@ class TestNanoKVMClientMouse:
     @pytest.mark.unit
     async def test_mouse_scroll(self, authenticated_client, mock_websocket):
         """mouse_scroll should send scroll event."""
-        with patch.object(authenticated_client, "_get_websocket", new_callable=AsyncMock) as mock_get_ws:
+        with patch.object(
+            authenticated_client, "_get_websocket", new_callable=AsyncMock
+        ) as mock_get_ws:
             mock_get_ws.return_value = mock_websocket
 
             await authenticated_client.mouse_scroll(3)
 
-            msg = json.loads(mock_websocket.send.call_args[0][0])
-            assert msg[0] == 2
-            assert msg[1] == MouseEvent.SCROLL
-            assert msg[4] == 3
+            msg = mock_websocket.send.call_args[0][0]
+            assert isinstance(msg, bytes)
+            assert msg[0] == 2  # Mouse channel
+            assert msg[1] == MouseButton.NONE  # no buttons held
+            assert msg[6] == 3  # wheel delta
+
+    @pytest.mark.asyncio
+    @pytest.mark.unit
+    async def test_mouse_scroll_retains_position(
+        self, authenticated_client, mock_websocket
+    ):
+        """Scroll should keep the cursor at the last moved position."""
+        with patch.object(
+            authenticated_client, "_get_websocket", new_callable=AsyncMock
+        ) as mock_get_ws:
+            mock_get_ws.return_value = mock_websocket
+
+            await authenticated_client.mouse_move(960, 540)
+            move = mock_websocket.send.call_args[0][0]
+
+            await authenticated_client.mouse_scroll(-2)
+            scroll = mock_websocket.send.call_args[0][0]
+
+            # x/y bytes (positions 2..6) must match the prior move.
+            assert scroll[2:6] == move[2:6]
+            assert scroll[6] == 0xFF & (-2)  # signed byte
 
 
 class TestNanoKVMClientScreenshot:
@@ -383,7 +453,9 @@ class TestNanoKVMClientScreenshot:
 
     @pytest.mark.asyncio
     @pytest.mark.unit
-    async def test_screenshot_parses_mjpeg(self, authenticated_client, jpeg_frame):
+    async def test_screenshot_parses_mjpeg(
+        self, authenticated_client, jpeg_frame
+    ):
         """screenshot should extract JPEG from MJPEG stream."""
         mock_response = AsyncMock()
         mock_response.raise_for_status = MagicMock()
@@ -395,8 +467,14 @@ class TestNanoKVMClientScreenshot:
         mock_response.__aenter__ = AsyncMock(return_value=mock_response)
         mock_response.__aexit__ = AsyncMock(return_value=None)
 
-        with patch.object(authenticated_client, "_ensure_authenticated", new_callable=AsyncMock):
-            with patch.object(authenticated_client, "_get_http_client", new_callable=AsyncMock) as mock_client:
+        with patch.object(
+            authenticated_client,
+            "_ensure_authenticated",
+            new_callable=AsyncMock,
+        ):
+            with patch.object(
+                authenticated_client, "_get_http_client", new_callable=AsyncMock
+            ) as mock_client:
                 mock_http = AsyncMock()
                 mock_http.stream = MagicMock(return_value=mock_response)
                 mock_client.return_value = mock_http
@@ -404,8 +482,8 @@ class TestNanoKVMClientScreenshot:
                 result = await authenticated_client.screenshot()
 
                 # Should return the JPEG data
-                assert result.startswith(b'\xff\xd8')  # JPEG SOI
-                assert result.endswith(b'\xff\xd9')  # JPEG EOI
+                assert result.startswith(b"\xff\xd8")  # JPEG SOI
+                assert result.endswith(b"\xff\xd9")  # JPEG EOI
 
 
 class TestNanoKVMClientStorage:
@@ -415,7 +493,9 @@ class TestNanoKVMClientStorage:
     @pytest.mark.unit
     async def test_list_images(self, authenticated_client):
         """list_images should return image list."""
-        with patch.object(authenticated_client, "_request", new_callable=AsyncMock) as mock_req:
+        with patch.object(
+            authenticated_client, "_request", new_callable=AsyncMock
+        ) as mock_req:
             mock_req.return_value = {
                 "code": 0,
                 "data": [
@@ -433,10 +513,14 @@ class TestNanoKVMClientStorage:
     @pytest.mark.unit
     async def test_mount_image(self, authenticated_client):
         """mount_image should send correct request."""
-        with patch.object(authenticated_client, "_request", new_callable=AsyncMock) as mock_req:
+        with patch.object(
+            authenticated_client, "_request", new_callable=AsyncMock
+        ) as mock_req:
             mock_req.return_value = {"code": 0}
 
-            await authenticated_client.mount_image("/data/ubuntu.iso", cdrom=True)
+            await authenticated_client.mount_image(
+                "/data/ubuntu.iso", cdrom=True
+            )
 
             mock_req.assert_called_once_with(
                 "POST",
@@ -448,7 +532,9 @@ class TestNanoKVMClientStorage:
     @pytest.mark.unit
     async def test_unmount_image(self, authenticated_client):
         """unmount_image should send empty mount request."""
-        with patch.object(authenticated_client, "_request", new_callable=AsyncMock) as mock_req:
+        with patch.object(
+            authenticated_client, "_request", new_callable=AsyncMock
+        ) as mock_req:
             mock_req.return_value = {"code": 0}
 
             await authenticated_client.unmount_image()
