@@ -48,6 +48,9 @@ htmlcov/
 *.manifest
 *.spec
 
+# MCPB build artifacts (regenerate with mcpb/build.ps1)
+*.mcpb
+
 # OS
 .DS_Store
 Thumbs.db
